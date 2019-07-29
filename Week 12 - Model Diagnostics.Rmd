@@ -1,0 +1,239 @@
+---
+title: "Week 12"
+author: "Megha S"
+date: "July 23, 2019"
+output: html_document
+---
+
+### Model Diagnostics
+#### Checking Assumptions
+
+```{r}
+# Checking the assumptions of a linear model
+# USing data simulated from three models
+sim_1 = function(sample_size = 500) {
+  x = runif(n = sample_size) * 5
+  y = 3 + 5 * x + rnorm(n = sample_size, mean = 0, sd = 1)
+  data.frame(x, y)
+}
+
+sim_2 = function(sample_size = 500) {
+  x = runif(n = sample_size) * 5
+  y = 3 + 5 * x + rnorm(n = sample_size, mean = 0, sd = x)
+  data.frame(x, y)
+}
+
+sim_3 = function(sample_size = 500) {
+  x = runif(n = sample_size) * 5
+  y = 3 + 5 * x ^ 2 + rnorm(n = sample_size, mean = 0, sd = 5)
+  data.frame(x, y)
+}
+
+# Fitted versus Residuals Plot
+# Simulating observations from model
+set.seed(42)
+sim_data_1 = sim_1()
+head(sim_data_1)
+
+# Fitting the model and adding the fitted line to a scatterplot
+plot(y ~ x, data = sim_data_1, col = "grey", pch = 20,
+     main = "Data from Model 1")
+fit_1 = lm(y ~ x, data = sim_data_1)
+abline(fit_1, col = "darkorange", lwd = 3)
+
+# Plotting a fitted versus residuals plot
+plot(fitted(fit_1), resid(fit_1), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Data from Model 1")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+# Simulating from models with violated assumptions
+set.seed(42)
+sim_data_2 = sim_2()
+fit_2 = lm(y ~ x, data = sim_data_2)
+plot(y ~ x, data = sim_data_2, col = "grey", pch = 20,
+     main = "Data from Model 2")
+abline(fit_2, col = "darkorange", lwd = 3)
+
+# Adding a fitted regression to a scatterplot
+plot(fitted(fit_2), resid(fit_2), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Data from Model 2")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+# A model where Y is not a linear combination of the predictors
+set.seed(42)
+sim_data_3 = sim_3()
+fit_3 = lm(y ~ x, data = sim_data_3)
+plot(y ~ x, data = sim_data_3, col = "grey", pch = 20,
+     main = "Data from Model 3")
+abline(fit_3, col = "darkorange", lwd = 3)
+
+# Again, this is rather clear on the scatterplot, but again, we wouldn’t be able to check this plot for multiple regression
+plot(fitted(fit_3), resid(fit_3), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residuals", main = "Data from Model 3")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+```
+
+### Breusch-Pagan Test
+
+```{r}
+# Constant variance is often called homoscedasticity. Conversely, non-constant variance is called heteroscedasticity
+# Testing for constant variance using Breusch-Pagan Test
+library(lmtest)
+bptest(fit_1)
+# For fit_1 we see a large p-value, so we do not reject the null of homoscedasticity
+bptest(fit_2)
+# For fit_2 we see a small p-value, so we reject the null of homoscedasticity. The constant variance assumption is violated
+bptest(fit_3)
+
+```
+
+### Histograms
+
+```{r}
+# Plotting histograms to check normality
+par(mfrow = c(1, 3))
+hist(resid(fit_1),
+     xlab   = "Residuals",
+     main   = "Histogram of Residuals, fit_1",
+     col    = "darkorange",
+     border = "dodgerblue",
+     breaks = 20)
+hist(resid(fit_2),
+     xlab   = "Residuals",
+     main   = "Histogram of Residuals, fit_2",
+     col    = "darkorange",
+     border = "dodgerblue",
+     breaks = 20)
+hist(resid(fit_3),
+     xlab   = "Residuals",
+     main   = "Histogram of Residuals, fit_3",
+     col    = "darkorange",
+     border = "dodgerblue",
+     breaks = 20)
+
+# Q-Q Plots
+qqnorm(resid(fit_1), main = "Normal Q-Q Plot, fit_1", col = "darkgrey")
+qqline(resid(fit_1), col = "dodgerblue", lwd = 2)
+
+# Normal probability plot
+qq_plot = function(e) {
+
+  n = length(e)
+  normal_quantiles = qnorm(((1:n - 0.5) / n))
+  # normal_quantiles = qnorm(((1:n) / (n + 1)))
+
+  # plot theoretical verus observed quantiles
+  plot(normal_quantiles, sort(e),
+       xlab = c("Theoretical Quantiles"),
+       ylab = c("Sample Quantiles"),
+       col = "darkgrey")
+  title("Normal Q-Q Plot")
+
+  # calculate line through the first and third quartiles
+  slope     = (quantile(e, 0.75) - quantile(e, 0.25)) / (qnorm(0.75) - qnorm(0.25))
+  intercept = quantile(e, 0.25) - slope * qnorm(0.25)
+
+  # add to existing plot
+  abline(intercept, slope, lty = 2, lwd = 2, col = "dodgerblue")
+}
+
+# Using qqnorm() and qqline() in R
+set.seed(420)
+x = rnorm(100, mean = 0 , sd = 1)
+par(mfrow = c(1, 2))
+qqnorm(x, col = "darkgrey")
+qqline(x, lty = 2, lwd = 2, col = "dodgerblue")
+qq_plot(x)
+
+# Simulating data from a normal distribution with different sample sizes to create Q-Q plot
+par(mfrow = c(1, 3))
+set.seed(420)
+qq_plot(rnorm(10))
+qq_plot(rnorm(25))
+qq_plot(rnorm(100))
+
+# Simulating data from a t-distribution with a small degrees of freedom, for different sample sizes
+par(mfrow = c(1, 3))
+set.seed(420)
+qq_plot(rt(10, df = 4))
+qq_plot(rt(25, df = 4))
+qq_plot(rt(100, df = 4))
+
+# Simulating data from an exponential distribution
+par(mfrow = c(1, 3))
+set.seed(420)
+qq_plot(rexp(10))
+qq_plot(rexp(25))
+qq_plot(rexp(100))
+
+# Creating a Q-Q plot for each to assess normality of errors
+qqnorm(resid(fit_1), main = "Normal Q-Q Plot, fit_1", col = "darkgrey")
+qqline(resid(fit_1), col = "dodgerblue", lwd = 2)
+
+# For fit_1, we have a near perfect Q-Q plot. We would believe the errors follow a normal distribution
+qqnorm(resid(fit_2), main = "Normal Q-Q Plot, fit_2", col = "darkgrey")
+qqline(resid(fit_2), col = "dodgerblue", lwd = 2)
+
+# For fit_2, we have a suspect Q-Q plot. We would probably not believe the errors follow a normal distribution.
+
+qqnorm(resid(fit_3), main = "Normal Q-Q Plot, fit_3", col = "darkgrey")
+qqline(resid(fit_3), col = "dodgerblue", lwd = 2)
+
+# For fit_3, we again have a suspect Q-Q plot. We would probably not believe the errors follow a normal distribution
+
+```
+
+### Shapiro-Wilk Test
+
+```{r}
+# Using Shapiro–Wilk test for formal testing
+set.seed(42)
+shapiro.test(rnorm(25))
+shapiro.test(rexp(25))
+shapiro.test(resid(fit_1))
+shapiro.test(resid(fit_2))
+shapiro.test(resid(fit_3))
+
+```
+
+### Good Diagnostics
+
+```{r}
+# Fitiing the model
+mpg_hp_add = lm(mpg ~ hp + am, data = mtcars)
+plot(fitted(mpg_hp_add), resid(mpg_hp_add), col = "grey", pch = 20,
+     xlab = "Fitted", ylab = "Residual",
+     main = "mtcars: Fitted versus Residuals")
+abline(h = 0, col = "darkorange", lwd = 2)
+
+# The fitted versus residuals plot looks good
+bptest(mpg_hp_add)
+
+# The Breusch-Pagan test verifies this, at least for a small α value
+qqnorm(resid(mpg_hp_add), col = "darkgrey")
+qqline(resid(mpg_hp_add), col = "dodgerblue", lwd = 2)
+
+# The Q-Q plot looks extremely good and the Shapiro-Wilk test agrees
+shapiro.test(resid(mpg_hp_add))
+sum(hatvalues(mpg_hp_add) > 2 * mean(hatvalues(mpg_hp_add)))
+sum(abs(rstandard(mpg_hp_add)) > 2)
+
+cd_mpg_hp_add = cooks.distance(mpg_hp_add)
+sum(cd_mpg_hp_add > 4 / length(cd_mpg_hp_add))
+
+large_cd_mpg = cd_mpg_hp_add > 4 / length(cd_mpg_hp_add)
+cd_mpg_hp_add[large_cd_mpg]
+
+# We find two influential points. Interestingly, they are very different cars 
+coef(mpg_hp_add)
+
+# Change of coeffients
+mpg_hp_add_fix = lm(mpg ~ hp + am,
+                    data = mtcars,
+                    subset = cd_mpg_hp_add <= 4 / length(cd_mpg_hp_add))
+coef(mpg_hp_add_fix)
+par(mfrow = c(2, 2))
+plot(mpg_hp_add)
+
+```
